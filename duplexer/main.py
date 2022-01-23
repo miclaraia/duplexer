@@ -4,26 +4,29 @@ import random
 import os
 import shutil
 
-from duplexer.cups_client import Cups
+from duplexer.cups_client import Cups, CupsOptions
 from duplexer.pdf import PDF
+from duplexer.config import Config
 
 
-def run(fname, printer, dry):
-    cups = Cups(printer)
-    name = os.path.splitext(os.path.basename(fname))[0]
+def run(config: Config):
+    cups = Cups(config.printer)
+    name = os.path.splitext(os.path.basename(config.file))[0]
 
     r = ''.join(random.choices(string.ascii_letters + string.digits, k=4))
     outdir = os.path.join('/tmp/duplexer', f'{name}-{r}')
 
-    pdf = PDF(fname, outdir)
+    pdf = PDF(config.file, outdir)
 
-    files = pdf.split_duplex()
+    files = pdf.split_duplex(config.n_per_page)
 
-    if not dry:
-        cups.print(files['even'], f'{name}-even', hold=False)
-        cups.print(files['odd'], f'{name}-odd', hold=True)
+    if not config.dry:
+        options = CupsOptions.from_config(config)
+        cups.print(files['even'], f'{name}-even', options)
+        cups.print(files['odd'], f'{name}-odd', options.hold())
 
-    if dry:
+    if config.dry:
+        print(files)
         input("Press Enter to continue...")
 
     shutil.rmtree(outdir)
@@ -34,6 +37,21 @@ def main():
     parser.add_argument('file')
     parser.add_argument('printer')
     parser.add_argument('--dry', action='store_true')
+    parser.add_argument('--double-per-page', action='store_true')
 
     args = parser.parse_args()
-    run(args.file, args.printer, args.dry)
+
+    config = Config()
+    config.dry = args.dry
+    if args.double_per_page:
+        config.n_per_page = 2
+
+    config.printer = args.printer
+    config.file = args.file
+
+    try:
+        run(config)
+    except Exception:
+        import pdb; import traceback
+        traceback.print_exc()
+        pdb.post_mortem()
