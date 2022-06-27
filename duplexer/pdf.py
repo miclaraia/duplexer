@@ -5,6 +5,8 @@ import math
 import argparse
 from pathlib import Path
 
+from duplexer.booklet import Booklet
+
 
 class PDF:
 
@@ -16,6 +18,8 @@ class PDF:
 
         self._pdf = None
         self._stream = None
+
+        self._mapping = None
 
     @property
     def name(self):
@@ -40,9 +44,18 @@ class PDF:
     def count_pages(self):
         return self.pdf.getNumPages()
 
-    def split_duplex(self, n_per_sheet):
+    def make_booklet(self):
         npages = self.count_pages()
-        pages = self._split_pages(npages, n_per_sheet)
+        page_mapping = Booklet.get_mapping(npages)
+        self._mapping = page_mapping
+
+    def split_duplex(self, n_per_sheet):
+        if self._mapping is not None:
+            pages = self._split_pages(self._mapping, n_per_sheet)
+        else:
+            npages = self.count_pages()
+            pages = self._split_pages(range(npages), n_per_sheet)
+
 
         name = f'{self.name}-odd.pdf'
         f1 = os.path.join(self.outdir, name)
@@ -61,12 +74,13 @@ class PDF:
         h = box.getHeight()
         writer.addBlankPage(w, h)
 
-    def _split_pages(self, npages, n_per_sheet):
+    def _split_pages(self, page_it, n_per_sheet):
         pages = [[], []]
 
         k = 0
         idx = 0
-        for i in range(npages):
+
+        for i in page_it:
             if k == n_per_sheet:
                 k = 0
                 idx = 1 - idx
@@ -87,6 +101,10 @@ class PDF:
                 self._add_blank_page(writer)
             else:
                 writer.addPage(self.pdf.getPage(page))
+
+        path = os.path.dirname(fname_out)
+        if not os.path.isdir(path):
+            Path(path).mkdir(parents=True)
 
         with open(fname_out, 'wb') as f:
             writer.write(f)

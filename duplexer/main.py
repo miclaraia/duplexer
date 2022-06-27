@@ -18,6 +18,9 @@ def run(config: Config):
 
     pdf = PDF(config.file, outdir)
 
+    if config.booklet:
+        pdf.make_booklet()
+
     files = pdf.split_duplex(config.n_per_page)
 
     if not config.dry:
@@ -38,12 +41,18 @@ def main():
     parser.add_argument('printer')
     parser.add_argument('--dry', action='store_true')
     parser.add_argument('--double-per-page', action='store_true')
+    parser.add_argument('--booklet', action='store_true')
 
     args = parser.parse_args()
 
     config = Config()
     config.dry = args.dry
+
     if args.double_per_page:
+        config.n_per_page = 2
+
+    if args.booklet:
+        config.booklet = True
         config.n_per_page = 2
 
     config.printer = args.printer

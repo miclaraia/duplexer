@@ -5,3 +5,5 @@ class Config:
 
         self.file = kwargs.get('file')
         self.printer = kwargs.get('printer')
+
+        self.booklet = kwargs.get('booklet')
